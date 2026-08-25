@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Findo — Yo‘qolgan narsalarni toping</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f8fb;color:#172033}header{background:#fff;border-bottom:1px solid #e8ebf0;position:sticky;top:0;z-index:10}.nav{max-width:1100px;margin:auto;padding:16px 22px;display:flex;align-items:center;justify-content:space-between}.logo{font-size:27px;font-weight:800;color:#2457ff}.logo span{color:#172033}.nav button{border:0;background:#2457ff;color:white;padding:11px 18px;border-radius:10px;font-weight:700}.hero{max-width:1100px;margin:45px auto 25px;padding:0 22px}.hero h1{font-size:48px;line-height:1.08;margin:0 0 15px}.hero p{font-size:18px;color:#657086;max-width:650px}.search{background:white;padding:14px;border-radius:16px;box-shadow:0 8px 30px #16203b12;display:flex;gap:10px;margin-top:25px}.search input{flex:1;border:1px solid #e2e6ed;border-radius:11px;padding:15px;font-size:16px}.search button{border:0;background:#2457ff;color:#fff;border-radius:11px;padding:0 22px;font-weight:700}.tabs{max-width:1100px;margin:28px auto 15px;padding:0 22px;display:flex;gap:10px}.tab{padding:10px 18px;border-radius:20px;border:1px solid #dfe4ec;background:white;cursor:pointer}.tab.active{background:#2457ff;color:white;border-color:#2457ff}.cards{max-width:1100px;margin:auto;padding:0 22px 50px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.card{background:white;border:1px solid #e8ebf0;border-radius:16px;overflow:hidden}.photo{height:180px;background:linear-gradient(135deg,#dce6ff,#eef2f8);display:flex;align-items:center;justify-content:center;font-size:52px}.content{padding:17px}.badge{display:inline-block;background:#eef3ff;color:#2457ff;padding:5px 9px;border-radius:7px;font-size:12px;font-weight:700}.content h3{margin:11px 0 7px}.content p{color:#687387;font-size:14px;margin:0 0 15px}.details{display:flex;justify-content:space-between;color:#8992a2;font-size:12px}.empty{grid-column:1/-1;text-align:center;padding:40px;color:#8992a2;display:none}@media(max-width:750px){.hero h1{font-size:36px}.cards{grid-template-columns:1fr}.search{flex-direction:column}.search button{height:48px}}
+</style>
+</head>
+<body>
+<header><div class="nav"><div class="logo">F<span>i</span>ndo</div><button onclick="postItem()">+ E’lon berish</button></div></header>
+<section class="hero"><h1>Yo‘qolgan narsangizni<br>Findo bilan toping.</h1><p>Yo‘qolgan yoki topilgan buyumlar haqida e’lon joylang. Atrofingizdagi odamlar bilan tezroq bog‘laning.</p><div class="search"><input id="search" placeholder="Masalan: telefon, hujjat, kalit..." oninput="filterCards()"><button onclick="filterCards()">Qidirish</button></div></section>
+<div class="tabs"><button class="tab active" onclick="setTab(this,'all')">Barchasi</button><button class="tab" onclick="setTab(this,'lost')">Yo‘qolgan</button><button class="tab" onclick="setTab(this,'found')">Topilgan</button></div>
+<section class="cards" id="cards">
+<div class="card" data-type="lost" data-title="iPhone telefon"><div class="photo">📱</div><div class="content"><span class="badge">YO‘QOLGAN</span><h3>iPhone 15 Pro</h3><p>Telefon Toshkent shahrida yo‘qolgan. G‘ilofi qora.</p><div class="details"><span>📍 Toshkent</span><span>Bugun</span></div></div></div>
+<div class="card" data-type="found" data-title="hujjat pasport"><div class="photo">🪪</div><div class="content"><span class="badge">TOPILGAN</span><h3>Pasport</h3><p>Ko‘chadan hujjat topildi. Egasi bog‘lanishi mumkin.</p><div class="details"><span>📍 Chilonzor</span><span>Kecha</span></div></div></div>
+<div class="card" data-type="lost" data-title="kalit"><div class="photo">🔑</div><div class="content"><span class="badge">YO‘QOLGAN</span><h3>Avtomobil kaliti</h3><p>Kalitlar bog‘lamasi yo‘qolgan. Topgan odamdan xabar kutamiz.</p><div class="details"><span>📍 Yunusobod</span><span>2 kun oldin</span></div></div></div>
+<div class="empty" id="empty">Hech narsa topilmadi.</div>
+</section>
+<script>
+let currentTab='all';
+function setTab(btn,type){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');currentTab=type;filterCards()}
+function filterCards(){let q=document.getElementById('search').value.toLowerCase();let cards=document.querySelectorAll('.card');let count=0;cards.forEach(c=>{let ok=(currentTab==='all'||c.dataset.type===currentTab)&&c.dataset.title.toLowerCase().includes(q);c.style.display=ok?'block':'none';if(ok)count++});document.getElementById('empty').style.display=count?'none':'block'}
+function postItem(){alert('E’lon berish funksiyasi keyingi bosqichda ulanadi.')} 
+</script>
+</body>
+</html>
