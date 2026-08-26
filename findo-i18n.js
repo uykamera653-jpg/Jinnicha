@@ -14,4 +14,4 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 
-(()=>{for(const src of ['findo-features.js','findo-pro-features.js','findo-map.js','findo-modern.js','findo-pro-ui.js','findo-visual-icons.js']){if(!document.querySelector(`script[src="${src}"]`)){const s=document.createElement('script');s.src=src+'?v=20260826-visual';s.async=false;document.head.appendChild(s)}}})();
+(()=>{for(const src of ['findo-features.js','findo-pro-features.js','findo-map.js','findo-modern.js','findo-pro-ui.js','findo-visual-icons.js','findo-exact-mobile-ui.js']){if(!document.querySelector(`script[src="${src}"]`)){const s=document.createElement('script');s.src=src+'?v=20260826-exact';s.async=false;document.head.appendChild(s)}}})();
