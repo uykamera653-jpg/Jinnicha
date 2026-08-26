@@ -125,4 +125,40 @@ function home(){scrollTo({top:0,behavior:'smooth'})}function toast(t){const e=do
   setTimeout(add,200);
 })();
 </script>
+<script>
+/* FINDO_PROFILE_LANGUAGE_FIX_V1 */
+(()=>{
+  const langs=[
+    ['uz','🇺🇿 O‘zbekcha'],
+    ['ru','🇷🇺 Русский'],
+    ['en','🇬🇧 English']
+  ];
+  let menu=null;
+  function close(){if(menu){menu.remove();menu=null}}
+  function choose(code){localStorage.setItem('findo_lang',code);close();location.reload()}
+  function show(anchor){
+    close();
+    menu=document.createElement('div');
+    menu.id='findoProfileLangMenu';
+    menu.style='position:fixed;z-index:10000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 28px));background:#fff;border:1px solid #e4e7ec;border-radius:18px;padding:18px;box-shadow:0 20px 60px #10182844;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial';
+    const title=document.createElement('div');title.textContent='🌐 Tilni tanlang';title.style='font-size:19px;font-weight:800;margin-bottom:12px';menu.appendChild(title);
+    langs.forEach(([code,label])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.style='display:block;width:100%;padding:13px 14px;margin:7px 0;border:1px solid #e4e7ec;border-radius:12px;background:#fff;font-weight:750;text-align:left;font-size:15px';b.onclick=()=>choose(code);menu.appendChild(b)});
+    const c=document.createElement('button');c.type='button';c.textContent='Yopish';c.style='display:block;width:100%;padding:11px;border:0;border-radius:12px;background:#f2f4f7;font-weight:750;margin-top:8px';c.onclick=close;menu.appendChild(c);
+    document.body.appendChild(menu);
+  }
+  function bind(){
+    document.querySelectorAll('button,a,[role="button"],.feature,.btn').forEach(el=>{
+      if(el.dataset.findoLangBound)return;
+      const t=(el.textContent||'').trim().toLowerCase();
+      if(t.includes('uz / ru / en')||t.includes('o‘zbekcha / ruscha / inglizcha')||t.includes('ko‘p tilli interfeys')||t==='🌐 til'||t==='til'||t==='language'||t==='язык'||t.includes('🌐')){
+        el.dataset.findoLangBound='1';
+        el.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();show(el)},true);
+      }
+    });
+  }
+  new MutationObserver(bind).observe(document.body,{childList:true,subtree:true});
+  window.addEventListener('load',()=>setTimeout(bind,100));
+  setTimeout(bind,300);
+})();
+</script>
 </body></html>
