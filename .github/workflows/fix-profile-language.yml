@@ -1,67 +1,87 @@
-name: Fix Findo profile language selector
+name: Fix Findo profile freeze
 
 on:
   push:
     branches: [main]
 
 jobs:
-  fix-language:
+  repair-profile:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Add working profile language selector
+
+      - name: Remove recursive language observers and add safe profile behavior
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('findo-live.html')
-          s=p.read_text(encoding='utf-8')
-          marker='/* FINDO_PROFILE_LANGUAGE_FIX_V1 */'
-          if marker in s:
-              raise SystemExit(0)
-          layer=r'''<script>
-          /* FINDO_PROFILE_LANGUAGE_FIX_V1 */
-          (()=>{
-            const langs=[
-              ['uz','🇺🇿 O‘zbekcha'],
-              ['ru','🇷🇺 Русский'],
-              ['en','🇬🇧 English']
-            ];
-            let menu=null;
-            function close(){if(menu){menu.remove();menu=null}}
-            function choose(code){localStorage.setItem('findo_lang',code);close();location.reload()}
-            function show(anchor){
-              close();
-              menu=document.createElement('div');
-              menu.id='findoProfileLangMenu';
-              menu.style='position:fixed;z-index:10000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 28px));background:#fff;border:1px solid #e4e7ec;border-radius:18px;padding:18px;box-shadow:0 20px 60px #10182844;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial';
-              const title=document.createElement('div');title.textContent='🌐 Tilni tanlang';title.style='font-size:19px;font-weight:800;margin-bottom:12px';menu.appendChild(title);
-              langs.forEach(([code,label])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.style='display:block;width:100%;padding:13px 14px;margin:7px 0;border:1px solid #e4e7ec;border-radius:12px;background:#fff;font-weight:750;text-align:left;font-size:15px';b.onclick=()=>choose(code);menu.appendChild(b)});
-              const c=document.createElement('button');c.type='button';c.textContent='Yopish';c.style='display:block;width:100%;padding:11px;border:0;border-radius:12px;background:#f2f4f7;font-weight:750;margin-top:8px';c.onclick=close;menu.appendChild(c);
-              document.body.appendChild(menu);
+          import re
+
+          p = Path('findo-live.html')
+          s = p.read_text(encoding='utf-8')
+
+          # Remove both old language layers. They each used a MutationObserver;
+          # the first observer repeatedly rewrote text nodes, while the second
+          # observer repeatedly scanned the whole document. Together they can
+          # lock up mobile browsers when a modal is opened.
+          s = re.sub(r'<script>\s*/\* FINDO_MULTILINGUAL_V1 \*/.*?</script>', '', s, flags=re.S)
+          s = re.sub(r'<script>\s*/\* FINDO_PROFILE_LANGUAGE_FIX_V1 \*/.*?</script>', '', s, flags=re.S)
+          s = re.sub(r'<script>\s*/\* FINDO_PROFILE_SAFE_V2 \*/.*?</script>', '', s, flags=re.S)
+
+          safe = r'''<script>
+          /* FINDO_PROFILE_SAFE_V2 */
+          (() => {
+            const originalOpenM = window.openM;
+            const originalCloseM = window.closeM;
+            let locked = false;
+
+            function setPageLock(on) {
+              document.body.style.overflow = on ? 'hidden' : '';
+              document.documentElement.style.overscrollBehavior = on ? 'none' : '';
             }
-            function bind(){
-              document.querySelectorAll('button,a,[role="button"],.feature,.btn').forEach(el=>{
-                if(el.dataset.findoLangBound)return;
-                const t=(el.textContent||'').trim().toLowerCase();
-                if(t.includes('uz / ru / en')||t.includes('o‘zbekcha / ruscha / inglizcha')||t.includes('ko‘p tilli interfeys')||t==='🌐 til'||t==='til'||t==='language'||t==='язык'||t.includes('🌐')){
-                  el.dataset.findoLangBound='1';
-                  el.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();show(el)},true);
-                }
-              });
-            }
-            new MutationObserver(bind).observe(document.body,{childList:true,subtree:true});
-            window.addEventListener('load',()=>setTimeout(bind,100));
-            setTimeout(bind,300);
+
+            window.openM = function(id) {
+              if (locked) return;
+              const modal = document.getElementById(id);
+              if (!modal) return;
+              locked = true;
+              document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+              modal.classList.add('show');
+              setPageLock(true);
+
+              if (id === 'profile') {
+                try {
+                  if (typeof updateStats === 'function') updateStats();
+                } catch (_) {}
+              }
+              requestAnimationFrame(() => { locked = false; });
+            };
+
+            window.closeM = function() {
+              document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+              setPageLock(false);
+              locked = false;
+            };
+
+            document.addEventListener('keydown', e => {
+              if (e.key === 'Escape') window.closeM();
+            }, { passive: true });
+
+            document.addEventListener('click', e => {
+              const modal = e.target.closest('.modal');
+              if (modal && e.target === modal) window.closeM();
+            }, true);
           })();
           </script>'''
-          s=s.replace('</body>',layer+'\n</body>')
-          p.write_text(s,encoding='utf-8')
+
+          s = s.replace('</body>', safe + '\n</body>')
+          p.write_text(s, encoding='utf-8')
           PY
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add findo-live.html
           git diff --cached --quiet && exit 0
-          git commit -m "Fix profile language selector"
+          git commit -m "Fix profile modal freeze"
           git push
