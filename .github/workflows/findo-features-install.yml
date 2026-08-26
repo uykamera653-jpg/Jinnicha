@@ -17,7 +17,7 @@ jobs:
 
           p=Path('findo-live.html')
           s=p.read_text(encoding='utf-8')
-          tag='<script src="findo-features.js?v=20260826-1945"></script>'
+          tag='<script src="findo-features.js?v=20260826-qr3"></script>'
           s=re.sub(r'<script src="findo-features\\.js(?:\\?[^" ]*)?"></script>', tag, s)
           if tag not in s:
               s=s.replace('</body>', tag+'\n</body>')
@@ -33,64 +33,113 @@ jobs:
             const mine=items().filter(x=>x.visitor_id===vid());
             const m=await renderFeature('qr',`<div class="box">
               <div class="head"><h2>🔗 Findo ID + QR</h2><button class="x" onclick="closeM()">×</button></div>
-              <p>Buyumingiz uchun unikal Findo QR yarating. QR skaner qilinganda buyumning Findo sahifasi ochiladi.</p>
+              <p><b>Narsangiz yo‘qolmasdan oldin</b> uni rasmga oling yoki telefoningizdan rasm yuklang va unga unikal Findo QR oling. QRni narsaga yopishtirasiz.</p>
+              <div class="alert">📱 Keyin kimdir narsangizni topsa, QRni telefon kamerasi yoki Findo QR skaneri bilan skanerlaydi. Egasi profili ochiladi va topuvchi egasiga xabar yubora oladi.</div>
               <form id="qrForm" class="form">
-                <label style="font-weight:750;font-size:13px">Buyumni tanlang</label>
-                <select id="qrItem" required>
-                  <option value="">Buyumni tanlang</option>
-                  ${mine.map(x=>`<option value="${esc(x.id)}">${esc(x.title)} — ${esc(x.location||'')}</option>`).join('')}
-                </select>
-                <input id="qrLabel" value="Findo ID" required placeholder="QR yorlig‘i">
+                <input id="qrName" required maxlength="160" placeholder="Buyum nomi: iPhone 15 Pro">
+                <select id="qrCategory" required><option>Telefon</option><option>Hujjat</option><option>Kalit</option><option>Sumka</option><option>Hamyon</option><option>Hayvon</option><option>Velosiped</option><option>Noutbuk</option><option>Boshqa</option></select>
+                <input id="qrOwner" required maxlength="100" placeholder="Egasi ismi: Diyor">
+                <textarea id="qrDesc" required maxlength="4000" placeholder="Buyumning belgisi: qora g‘ilof, chap burchagida tirnalgan joy..."></textarea>
+                <div class="field"><label>Buyum rasmi</label><input id="qrImage" type="file" accept="image/*" required></div>
                 <button id="qrBtn" class="btn primary" type="submit">🔗 QR yaratish</button>
               </form>
               <div id="qrOut"></div>
               <div id="qrList" class="list"></div>
+              <div class="section" style="margin-top:20px"><h3>📩 QR orqali kelgan xabarlar</h3></div>
+              <div id="qrContacts" class="list"></div>
+              <button type="button" class="btn" onclick="startFindoQRScanner()">📷 QR skanerini ochish</button>
             </div>`);
             if(!m)return;
-            const select=document.getElementById('qrItem');
-            const btn=document.getElementById('qrBtn');
-            const out=document.getElementById('qrOut');
-            if(!mine.length){
-              select.innerHTML='<option value="">Avval o‘zingizning e’loningizni yarating</option>';
-              btn.disabled=true;
-              btn.style.opacity='.55';
-              out.innerHTML='<div class="alert">📦 QR biriktirish uchun avval <b>+ E’lon</b> orqali kamida bitta buyum e’lon qiling.</div>';
-            }else if(mine.length===1){
-              select.value=mine[0].id;
-            }
             qrForm.onsubmit=async e=>{
               e.preventDefault();
-              const itemId=select.value;
-              if(!itemId){toast('⚠️ Avval ro‘yxatdan buyumni tanlang.');select.focus();return}
-              const item=mine.find(x=>x.id===itemId);
-              const code='FINDO-'+crypto.randomUUID();
-              const label=qrLabel.value.trim()||'Findo ID';
-              const saved=await put('qr_items',{visitor_id:vid(),item_id:itemId,code,label});
-              if(!saved)return;
-              const url=location.origin+location.pathname+'?qr='+encodeURIComponent(code);
-              out.innerHTML=`<div class="match" style="text-align:center"><b>✅ QR tayyor</b><p>${esc(item.title)} · ${esc(label)}</p><img id="qrImg" alt="Findo QR" style="width:240px;height:240px;max-width:100%;margin:10px auto;display:block;border-radius:12px;background:#fff;padding:8px;border:1px solid #e4e7ec"><p style="word-break:break-all;font-size:12px;color:#667085">${esc(code)}</p><div class="actions"><button type="button" class="btn primary" id="qrShare">↗ Ulashish</button><button type="button" class="btn" id="qrCopy">🔗 Link nusxalash</button></div></div>`;
-              const img=document.getElementById('qrImg');
-              img.src='https://quickchart.io/qr?size=300&text='+encodeURIComponent(url);
-              document.getElementById('qrShare').onclick=()=>navigator.share?navigator.share({title:'Findo QR',text:item.title,url}):navigator.clipboard?.writeText(url).then(()=>toast('🔗 Link nusxalandi'));
-              document.getElementById('qrCopy').onclick=()=>navigator.clipboard?.writeText(url).then(()=>toast('🔗 Findo link nusxalandi'));
-              toast('✅ Findo QR backend’da saqlandi');
-              renderQRList();
+              const file=qrImage.files[0];
+              if(!file)return toast('📸 Buyum rasmini yuklang');
+              if(file.size>8*1024*1024)return toast('❌ Rasm 8 MB dan kichik bo‘lsin');
+              const name=qrName.value.trim(),owner=qrOwner.value.trim(),desc=qrDesc.value.trim(),cat=qrCategory.value;
+              try{
+                let image_path=null;
+                const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+                const path=`${vid()}/qr-${crypto.randomUUID()}.${ext}`;
+                const up=await db.storage.from('item-images').upload(path,file,{contentType:file.type,upsert:false});
+                if(up.error)throw up.error;
+                image_path=path;
+                const {data:item,error:itemError}=await db.from('items').insert({visitor_id:vid(),type:'lost',category:cat,title:name,location:'QR himoyalangan buyum',description:desc,status:'qr_protected',image_path}).select().single();
+                if(itemError)throw itemError;
+                const {error:profileError}=await db.from('findo_profiles').upsert({visitor_id:vid(),display_name:owner},{onConflict:'visitor_id'});
+                if(profileError)throw profileError;
+                const code='FINDO-'+crypto.randomUUID();
+                const {data:qrRow,error:qrError}=await db.from('qr_items').insert({visitor_id:vid(),item_id:item.id,code,label:name}).select().single();
+                if(qrError)throw qrError;
+                const url=location.origin+location.pathname+'?qr='+encodeURIComponent(code);
+                qrOut.innerHTML=`<div class="match" style="text-align:center"><b>✅ QR tayyor va saqlandi</b><p>${esc(name)}</p><div id="qrCanvas" style="display:flex;justify-content:center;margin:12px 0"></div><p style="word-break:break-all;font-size:12px;color:#667085">${esc(code)}</p><div class="actions"><button type="button" class="btn primary" id="qrShare">↗ Ulashish</button><button type="button" class="btn" id="qrCopy">🔗 Link nusxalash</button></div><button type="button" class="btn" id="qrLost" style="margin-top:8px;width:100%">🚨 Yo‘qolgan deb belgilash</button></div>`;
+                await makeFindoQR(url);
+                qrShare.onclick=()=>navigator.share?navigator.share({title:'Findo QR',text:name,url}):navigator.clipboard?.writeText(url).then(()=>toast('🔗 Link nusxalandi'));
+                qrCopy.onclick=()=>navigator.clipboard?.writeText(url).then(()=>toast('🔗 Findo link nusxalandi'));
+                qrLost.onclick=async()=>{const {error}=await db.from('items').update({status:'active'}).eq('id',item.id).eq('visitor_id',vid());if(error)return toast('❌ Holatni o‘zgartirib bo‘lmadi');toast('🚨 Buyum yo‘qolgan deb belgilandi');await freshItems();renderQRList();};
+                toast('✅ Findo QR backend’da saqlandi');
+                qrForm.reset();
+                renderQRList();
+              }catch(err){console.error(err);toast('❌ QR yaratishda xato: '+(err.message||'unknown'))}
             };
             renderQRList();
+            renderQRContacts();
           }
+
+          async function makeFindoQR(url){
+            if(!window.QRCode)await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)}).catch(()=>{});
+            const el=document.getElementById('qrCanvas');
+            if(el&&window.QRCode)new QRCode(el,{text:url,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
+          }
+
           async function renderQRList(){
-            const el=document.getElementById('qrList');
-            if(!el)return;
+            const el=document.getElementById('qrList');if(!el)return;
             const data=await list('qr_items');
             el.innerHTML=data.map(x=>`<div class="listItem">🔗 <b>${esc(x.label||'Findo ID')}</b> · ${esc(items().find(i=>i.id===x.item_id)?.title||'Buyum')}<br><small>${esc(x.code)} · ${fmt(x.created_at)}</small></div>`).join('')||'<p>Hali QR yaratilmagan.</p>';
           }
-          '''
-          pattern=r'async function qr\(\)\{.*?(?=\n  (?:async )?function )'
-          if re.search(pattern,fs,re.S):
-              fs=re.sub(pattern,qr+'\n  ',fs,count=1,flags=re.S)
-          else:
-              raise SystemExit('QR function not found')
-          f.write_text(fs,encoding='utf-8')
+
+          async function renderQRContacts(){
+            const el=document.getElementById('qrContacts');if(!el)return;
+            const {data,error}=await db.from('qr_contacts').select('*').eq('owner_visitor_id',vid()).order('created_at',{ascending:false}).limit(30);
+            if(error){el.innerHTML='<p>Hali xabar yo‘q.</p>';return}
+            el.innerHTML=(data||[]).map(x=>`<div class="listItem">📩 <b>${esc(x.finder_name||'Topuvchi')}</b>${x.finder_phone?' · '+esc(x.finder_phone):''}<br>${esc(x.message)}<br><small>${fmt(x.created_at)}</small></div>`).join('')||'<p>Hali xabar yo‘q.</p>';
+          }
+
+          async function startFindoQRScanner(){
+            const old=document.getElementById('findoQrScanner');if(old)old.remove();
+            const modal=document.createElement('div');modal.id='findoQrScanner';modal.className='modal show';modal.innerHTML=`<div class="box"><div class="head"><h2>📷 Findo QR Scanner</h2><button class="x" onclick="document.getElementById('findoQrScanner')?.remove()">×</button></div><p>Kamerani QR kodga qarating.</p><div id="findoQrReader" style="width:100%"></div><div id="findoQrScanStatus" class="alert">Kamera ochilmoqda...</div></div>`;document.body.appendChild(modal);
+            if(!window.Html5Qrcode)await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)}).catch(()=>{});
+            if(!window.Html5Qrcode){findoQrScanStatus.textContent='❌ QR scanner kutubxonasi yuklanmadi. Telefon kamerasi bilan QRni skaner qiling.';return}
+            const scanner=new Html5Qrcode('findoQrReader');
+            const config={fps:10,qrbox:{width:250,height:250}};
+            scanner.start({facingMode:'environment'},config,async text=>{await scanner.stop().catch(()=>{});modal.remove();let code=text;try{const u=new URL(text);code=u.searchParams.get('qr')||text}catch(_){}showPublicQR(code)},()=>{}).catch(()=>{findoQrScanStatus.textContent='❌ Kameraga ruxsat berilmadi. Telefon sozlamalaridan Camera ruxsatini yoqing.'});
+          }
+
+          async function showPublicQR(code){
+            if(!code)return;
+            document.getElementById('findoQrPublic')?.remove();
+            const modal=document.createElement('div');modal.id='findoQrPublic';modal.className='modal show';modal.innerHTML='<div class="box"><div class="head"><h2>🔗 Findo QR</h2><button class="x" id="closePublicQR">×</button></div><div id="publicQrBody" class="alert">⏳ QR maʼlumoti olinmoqda...</div></div>';
+            document.body.appendChild(modal);closePublicQR.onclick=()=>modal.remove();
+            try{
+              const {data:qrRow,error:qrError}=await db.from('qr_items').select('*').eq('code',code).maybeSingle();
+              if(qrError||!qrRow)throw new Error('Bu QR Findo bazasida topilmadi');
+              const {data:item,error:itemError}=await db.from('items').select('*').eq('id',qrRow.item_id).maybeSingle();
+              if(itemError||!item)throw new Error('Buyum maʼlumoti topilmadi');
+              const {data:profile}=await db.from('findo_profiles').select('*').eq('visitor_id',qrRow.visitor_id).maybeSingle();
+              const image=item.image_path?db.storage.from('item-images').getPublicUrl(item.image_path).data.publicUrl:null;
+              publicQrBody.className='';
+              publicQrBody.innerHTML=`<div class="heroCard"><div style="font-size:46px">${image?`<img src="${esc(image)}" style="width:90px;height:90px;object-fit:cover;border-radius:16px">`:'🔗'}</div><h2 style="margin:10px 0">${esc(item.title)}</h2><p>${esc(item.description)}</p><p><b>👤 Egasi:</b> ${esc(profile?.display_name||'Findo egasi')}</p><p><b>🆔 Findo ID:</b> ${esc(String(qrRow.visitor_id).slice(-12))}</p></div><div class="alert">🔐 Egani topish uchun telefon raqami ochiq ko‘rsatilmaydi. Findo orqali xabar yuboring.</div><form id="qrContactForm" class="form"><input id="finderName" placeholder="Ismingiz"><input id="finderPhone" placeholder="Telefoningiz (ixtiyoriy)"><textarea id="finderMessage" required placeholder="Masalan: Narsangizni topdim. Qayerdan olib ketishingiz mumkinligini yozing..."></textarea><button class="btn primary">📩 Egasiga xabar yuborish</button></form>`;
+              qrContactForm.onsubmit=async e=>{e.preventDefault();const message=finderMessage.value.trim();if(!message)return;const {error}=await db.from('qr_contacts').insert({qr_id:qrRow.id,item_id:item.id,owner_visitor_id:qrRow.visitor_id,finder_visitor_id:vid(),finder_name:finderName.value.trim()||'Topuvchi',finder_phone:finderPhone.value.trim()||null,message});if(error)return toast('❌ Xabar yuborilmadi: '+error.message);qrContactForm.innerHTML='<div class="match"><b>✅ Xabar egasiga yuborildi</b><p>Endi egasi Findo profilidan siz bilan bog‘lanishi mumkin.</p></div>';toast('📩 Xabar yuborildi')};
+            }catch(err){publicQrBody.className='alert';publicQrBody.textContent='❌ '+(err.message||'QRni ochib bo‘lmadi')}
+          }
+
+          async function visual(){const m=await renderFeature('visual',`<div class="box"><div class="head"><h2>📸 Visual Search</h2><button class="x" onclick="closeM()">×</button></div><p>Rasmni Findo Storage’ga yuklaymiz, fingerprint yaratamiz va rasmli eʼlonlarni real bazadan chiqaramiz.</p><input id="visualFile" type="file" accept="image/*"><img id="visualPrev2" style="display:none;max-width:100%;margin-top:12px;border-radius:12px"><div id="visualOut2" class="list"></div></div>`);if(!m)return;visualFile.onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>5*1024*1024)return toast('❌ Rasm 5 MB dan kichik bo‘lsin');const r=new FileReader();r.onload=()=>{visualPrev2.src=r.result;visualPrev2.style.display='block'};r.readAsDataURL(f);visualOut2.innerHTML='<div class="match">⏳ Rasm yuklanmoqda...</div>';const b=await f.arrayBuffer(),h=await crypto.subtle.digest('SHA-256',b),hash=[...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,24);let url='';try{const path=`${vid()}/${Date.now()}-${f.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await db.storage.from('item-images').upload(path,f,{contentType:f.type,upsert:false});if(!up.error)url=db.storage.from('item-images').getPublicUrl(path).data.publicUrl}catch(err){console.warn(err)}await put('visual_searches',{visitor_id:vid(),image_hash:hash,image_url:url||null,query_text:f.name});const data=await freshItems();const cs=data.filter(x=>x.image_path||x.image_url);visualOut2.innerHTML=`<div class="match"><b>✅ Rasm qabul qilindi</b><p>${cs.length} ta rasmli eʼlon bazada bor.</p><small>Qidiruv ID: ${esc(hash)}</small></div>`+cs.slice(0,20).map(x=>`<div class="listItem">📷 <b>${esc(x.title)}</b><br>📍 ${esc(x.location||'')}</div>`).join('')};}
+
+          const oldOpen=window.openM;
+          window.openM=async id=>{try{if(id==='reward')return reward();if(id==='proof')return proof();if(id==='safety')return safety();if(id==='hero')return hero();if(id==='business')return business();if(id==='detective')return detective();if(id==='qr')return qr();if(id==='nearby')return nearby();if(id==='visual')return visual();if(typeof oldOpen==='function')return oldOpen(id)}catch(e){console.error('Findo feature',id,e);toast('❌ '+(e.message||'Bo‘limni ochishda xato'))}};
+          freshItems();
+          const initialQR=new URLSearchParams(location.search).get('qr');
+          if(initialQR)setTimeout(()=>showPublicQR(initialQR),250);
+          })();
           PY
       - name: Commit
         run: |
@@ -98,5 +147,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add findo-live.html findo-features.js
           git diff --cached --quiet && exit 0
-          git commit -m "Fix Findo QR item selection and generation"
+          git commit -m "Fix Findo QR flow before item loss"
           git push
