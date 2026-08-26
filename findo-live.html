@@ -62,6 +62,8 @@ function shareItem(id){const url=location.origin+location.pathname+'?item='+enco
 function home(){scrollTo({top:0,behavior:'smooth'})}function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2800)}window.onclick=e=>{if(e.target.classList.contains('modal'))closeM()};boot();
 </script>
 <script src="findo-features.js"></script>
+
+<script src="findo-i18n.js"></script>
 <script>
 /* FINDO_PROFILE_SAFE_V2 */
 (() => {
@@ -107,5 +109,4 @@ function home(){scrollTo({top:0,behavior:'smooth'})}function toast(t){const e=do
   }, true);
 })();
 </script>
-<script src="findo-i18n.js"></script>
 </body></html>
