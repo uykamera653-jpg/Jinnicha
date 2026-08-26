@@ -1,0 +1,99 @@
+name: Findo language update
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  update-language:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add multilingual layer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('findo-live.html')
+          s = p.read_text(encoding='utf-8')
+          marker = '/* FINDO_MULTILINGUAL_V1 */'
+          if marker in s:
+              print('Multilingual layer already installed')
+              raise SystemExit(0)
+          layer = r'''<script>
+          /* FINDO_MULTILINGUAL_V1 */
+          (()=>{
+            const L={
+              uz:{name:'O‘zbekcha',flag:'🇺🇿',
+                'Findo — Live Lost & Found Network':'Findo — Yo‘qolgan va topilgan buyumlar tarmog‘i',
+                'LIVE • AI • RADAR • NETWORK':'JONLI • SUN’IY INTELLEKT • RADAR • TARMOQ',
+                'Narsangizni':'Narsangizni','toping.':'toping.',
+                'Findo — yo‘qolgan va topilgan buyumlarni real backend bilan saqlash, qidirish, moslashtirish va Radar orqali kuzatish platformasi.':'Findo — yo‘qolgan va topilgan buyumlarni saqlash, qidirish, moslashtirish va Radar orqali kuzatish platformasi.',
+                'Telefon, pasport, kalit, sumka...':'Telefon, hujjat, kalit, sumka...',
+                '🔎 Smart Search':'🔎 Aqlli qidiruv','+ E’lon':'+ E’lon','❤️':'❤️','👤':'👤','🚨 Radar':'🚨 Radar','🤖 AI':'🤖 Sun’iy intellekt',
+                'Findo AI / Match 360°':'Findo sun’iy intellekt / 360° moslik','Rasm, rang, model, joy, vaqt va tavsifni tahlil qilish.':'Rasm, rang, model, joy, vaqt va tavsifni tahlil qilish.',
+                'Visual Search':'Rasm orqali qidirish','Rasm orqali o‘xshash buyumlarni qidiring.':'Rasm orqali o‘xshash buyumlarni qidiring.',
+                'Findo Radar':'Findo Radari','Yangi mos e’lonlarni kuzatadi.':'Yangi mos e’lonlarni kuzatadi.',
+                'Last Seen Detective':'Oxirgi ko‘rilgan joy tahlili','Oxirgi ko‘rilgan joyni tahlil qiladi.':'Oxirgi ko‘rilgan joyni tahlil qiladi.',
+                'Findo Nearby':'Yaqin atrofdagi Findo','Yaqindagi e’lonlarni ko‘rsatadi.':'Yaqindagi e’lonlarni ko‘rsatadi.',
+                'Business Mode':'Tashkilotlar rejimi','Hotel, mall, taxi, airport va maktablar.':'Mehmonxona, savdo markazi, taksi, aeroport va maktablar.',
+                'Reward':'Mukofot','Mukofot belgilash.':'Mukofot belgilash.','Owner Proof':'Egalikni tasdiqlash','Egalikni xavfsiz tekshirish.':'Egalikni xavfsiz tekshirish.',
+                'Findo Hero':'Findo Qahramoni','Ishonch va yordam reytingi.':'Ishonch va yordam reytingi.','Safety Center':'Xavfsizlik markazi','Report va scam himoyasi.':'Shikoyat va firibgarlikdan himoya.',
+                'Findo ID + QR':'Findo ID + QR','Buyumga QR biriktirish.':'Buyumga QR biriktirish.','UZ / RU / EN':'O‘zbekcha / Ruscha / Inglizcha','Ko‘p tilli interfeys.':'Ko‘p tilli interfeys.',
+                'Findo Network':'Findo tarmog‘i','real e’lon':'haqiqiy e’lon','topilgan':'topilgan','yo‘qolgan':'yo‘qolgan','status':'holat','Guest':'Mehmon','Live':'Jonli',
+                '↻ Yangilash':'↻ Yangilash','Findo Live Map':'Findo jonli xaritasi','📍 Joylashuvim':'📍 Joylashuvim','Barchasi':'Barchasi','Yo‘qolgan':'Yo‘qolgan','Topilgan':'Topilgan','Barcha hududlar':'Barcha hududlar',
+                'Yangi e’lon':'Yangi e’lon','Holat':'Holat','Kategoriya':'Kategoriya','Nomi':'Nomi','Hudud':'Hudud','Mukofot':'Mukofot','Tavsif':'Tavsif','Telefon':'Telefon','Rasm':'Rasm','E’lonni joylash':'E’lonni joylash',
+                '🤖 Findo AI':'🤖 Findo sun’iy intellekti','AI tavsifni tahlil qilib, e’lon uchun aniqroq maydonlarni tayyorlaydi.':'Sun’iy intellekt tavsifni tahlil qilib, e’lon uchun aniqroq ma’lumotlarni tayyorlaydi.',
+                '✨ Tahlil qilish':'✨ Tahlil qilish','📸 Visual Search':'📸 Rasm orqali qidirish','🚨 Findo Radar':'🚨 Findo Radari','Qidiruvni backend’da saqlang.':'Qidiruvni saqlang.','🔔 Radarni yoqish':'🔔 Radari yoqish',
+                '🕵️ Last Seen Detective':'🕵️ Oxirgi ko‘rilgan joy tahlili','📍 Findo Nearby':'📍 Yaqin atrofdagi Findo','GPS ruxsati berilgach, real e’lonlar hudud bo‘yicha filtrlanadi.':'Joylashuvga ruxsat berilgach, e’lonlar hudud bo‘yicha saralanadi.',
+                '❤️ Saqlanganlar':'❤️ Saqlanganlar','Saqlangan e’lon yo‘q.':'Saqlangan e’lon yo‘q.','👤 Profil':'👤 Profil','E’lonlar:':'E’lonlar:','Saqlangan:':'Saqlangan:','Auth:':'Kirish holati:',
+                'authenticated':'tasdiqlangan','tekshirilmoqda':'tekshirilmoqda','🏢 Business Mode':'🏢 Tashkilotlar rejimi','💰 Reward':'💰 Mukofot','🔐 Owner Proof':'🔐 Egalikni tasdiqlash','🏆 Findo Hero':'🏆 Findo Qahramoni','🛡️ Safety Center':'🛡️ Xavfsizlik markazi','🔗 Findo ID + QR':'🔗 Findo ID + QR','🌐 Til':'🌐 Til',
+                'Boshqa':'Boshqa','Hujjat':'Hujjat','Kalit':'Kalit','Sumka':'Sumka','Hamyon':'Hamyon','Hayvon':'Hayvon','Velosiped':'Velosiped','Noutbuk':'Noutbuk','Toshkent':'Toshkent','Samarqand':'Samarqand','Andijon':'Andijon','Farg‘ona':'Farg‘ona','Buxoro':'Buxoro','Namangan':'Namangan',
+                'YO‘QOLGAN':'YO‘QOLGAN','TOPILGAN':'TOPILGAN','🟢 LIVE':'🟢 JONLI','real backend':'haqiqiy tizim','Lost & Found Network':'Yo‘qolgan va topilgan buyumlar tarmog‘i','© 2026 Findo • Live backend':'© 2026 Findo • Jonli tizim'},
+              ru:{name:'Русский',flag:'🇷🇺'},
+              en:{name:'English',flag:'🇬🇧'}
+            };
+            Object.assign(L.ru,{ 'Findo — Live Lost & Found Network':'Findo — сеть потерянных и найденных вещей','LIVE • AI • RADAR • NETWORK':'В РЕАЛЬНОМ ВРЕМЕНИ • ИИ • РАДАР • СЕТЬ','Narsangizni':'Найдите свою','toping.':'вещь.','Findo Network':'Сеть Findo','Findo Live Map':'Живая карта Findo','Barchasi':'Все','Yo‘qolgan':'Потеряно','Topilgan':'Найдено','Barcha hududlar':'Все регионы','Yangi e’lon':'Новое объявление','Holat':'Статус','Kategoriya':'Категория','Nomi':'Название','Hudud':'Регион','Mukofot':'Вознаграждение','Tavsif':'Описание','Telefon':'Телефон','Rasm':'Фото','E’lonni joylash':'Опубликовать объявление','Saqlanganlar':'Сохранённые','Profil':'Профиль','Til':'Язык'});
+            Object.assign(L.en,{ 'Findo — Live Lost & Found Network':'Findo — Live Lost & Found Network','LIVE • AI • RADAR • NETWORK':'LIVE • AI • RADAR • NETWORK','Narsangizni':'Find your','toping.':'item.','Findo Network':'Findo Network','Findo Live Map':'Findo Live Map','Barchasi':'All','Yo‘qolgan':'Lost','Topilgan':'Found','Barcha hududlar':'All regions','Yangi e’lon':'New post','Holat':'Status','Kategoriya':'Category','Nomi':'Name','Hudud':'Location','Mukofot':'Reward','Tavsif':'Description','Telefon':'Phone','Rasm':'Photo','E’lonni joylash':'Publish post','Saqlanganlar':'Saved','Profil':'Profile','Til':'Language'});
+            const keys=()=>Object.keys(L.uz);
+            let lang=localStorage.getItem('findo_lang')||'uz';
+            function translateText(node){
+              if(node.nodeType!==3)return;
+              let v=node.nodeValue;
+              const map=L[lang]||L.uz;
+              for(const k of keys()) if(map[k] && v.includes(k)) v=v.split(k).join(map[k]);
+              if(lang==='uz'){
+                for(const k of Object.keys(L.ru)) if(k!==L.ru[k] && v.includes(L.ru[k])) v=v.split(L.ru[k]).join(L.uz[k]||L.ru[k]);
+                for(const k of Object.keys(L.en)) if(k!==L.en[k] && v.includes(L.en[k])) v=v.split(L.en[k]).join(L.uz[k]||L.en[k]);
+              }
+              node.nodeValue=v;
+            }
+            function apply(){
+              document.documentElement.lang=lang==='uz'?'uz':lang;
+              document.title=(L[lang]||L.uz)['Findo — Live Lost & Found Network']||'Findo';
+              const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode())translateText(n);
+              document.querySelectorAll('input,textarea').forEach(el=>{const map=L[lang]||L.uz;if(el.placeholder){for(const k of keys())if(map[k]&&el.placeholder.includes(k))el.placeholder=el.placeholder.split(k).join(map[k]);}});
+              const b=document.getElementById('langBtn');if(b)b.textContent=(L[lang]||L.uz).flag+' '+(L[lang]||L.uz).name;
+            }
+            function panel(){
+              const m=document.createElement('div');m.id='languagePanel';m.style='position:fixed;right:14px;top:62px;z-index:999;background:#fff;border:1px solid #e4e7ec;border-radius:14px;padding:8px;box-shadow:0 14px 40px #10182822;display:flex;gap:6px;flex-direction:column';
+              ['uz','ru','en'].forEach(x=>{const b=document.createElement('button');b.className='btn';b.textContent=L[x].flag+' '+L[x].name;b.onclick=()=>{lang=x;localStorage.setItem('findo_lang',x);m.remove();apply()};m.appendChild(b)});document.body.appendChild(m);
+            }
+            function add(){const old=document.querySelector('.navBtns');if(!old||document.getElementById('langBtn'))return;const b=document.createElement('button');b.id='langBtn';b.className='btn';b.onclick=()=>{const p=document.getElementById('languagePanel');p?p.remove():panel()};old.insertBefore(b,old.firstChild);apply()}
+            const obs=new MutationObserver(()=>{if(document.getElementById('langBtn'))apply()});obs.observe(document.body,{childList:true,subtree:true});
+            window.addEventListener('load',()=>setTimeout(add,50));
+            setTimeout(add,200);
+          })();
+          </script>'''
+          s=s.replace('</body>',layer+'\n</body>')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add findo-live.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Add Uzbek Russian English language support"
+          git push
