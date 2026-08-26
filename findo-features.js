@@ -35,7 +35,64 @@
 
   async function detective(){await freshItems();const m=await renderFeature('detective',`<div class="box"><div class="head"><h2>🕵️ Last Seen Detective</h2><button class="x" onclick="closeM()">×</button></div><p>Oxirgi ko‘rilgan joy, keyingi joy va transportni yozing. Findo topilgan eʼlonlar bilan moslikni hisoblaydi.</p><form id="detForm" class="form"><select id="detItem"><option value="">Yo‘qolgan buyumni tanlang</option>${opts(false)}</select><input id="d1x" required placeholder="Oxirgi marta qayerda ko‘rdingiz?"><input id="d2x" placeholder="Keyin qayerga bordingiz?"><input id="d3x" placeholder="Taksi, avtobus, piyoda..."><button class="btn primary">🕵️ Tahlil qilish va saqlash</button></form><div id="detOut" class="list"></div></div>`);if(!m)return;detForm.onsubmit=async e=>{e.preventDefault();const item=items().find(x=>x.id===detItem.value)||{};const q=[item.title,item.category,item.description,d1x.value,d2x.value,d3x.value].join(' ');const cs=items().filter(x=>x.type==='found'&&x.status!=='archived').map(x=>({...x,score:score(q,x)})).sort((a,b)=>b.score-a.score).slice(0,8);const best=cs[0];const confidence=best?.score>=70?'Yuqori':best?.score>=40?'O‘rta':'Past';const result=`Yo‘nalish: ${[d1x.value.trim(),d2x.value.trim()].filter(Boolean).join(' → ')||'ko‘rsatilmagan'}${d3x.value.trim()?' · transport: '+d3x.value.trim():''}. Eng mos eʼlon: ${best?.title||'topilmadi'}. Moslik: ${best?.score||0}%. Ishonchlilik: ${confidence}.`;if(await put('detective_cases',{visitor_id:vid(),item_id:detItem.value||null,last_seen:d1x.value.trim(),next_place:d2x.value.trim(),transport:d3x.value.trim(),result})){detOut.innerHTML=`<div class="match"><b>✅ Tahlil tayyor</b><p>${esc(result)}</p></div>`+cs.map(x=>`<div class="listItem">🟢 <b>${esc(x.title)}</b> — ${x.score}%<br><small>📍 ${esc(x.location||'')} · ${esc(x.description||'')}</small></div>`).join('');toast('✅ Detective case saqlandi')}}}
 
-  async function qr(){await freshItems();const m=await renderFeature('qr',`<div class="box"><div class="head"><h2>🔗 Findo ID + QR</h2><button class="x" onclick="closeM()">×</button></div><p>Buyum uchun unikal Findo QR yarating.</p><form id="qrForm" class="form"><select id="qrItem" required><option value="">Buyumni tanlang</option>${opts()}</select><input id="qrLabel" placeholder="Masalan: Uy kaliti"><button class="btn primary">🔗 QR yaratish</button></form><div id="qrResult" style="margin-top:15px;text-align:center"></div><div id="qrList" class="list"></div></div>`);if(!m)return;qrForm.onsubmit=async e=>{e.preventDefault();const code='FN-'+crypto.randomUUID().replaceAll('-','').slice(0,12).toUpperCase();if(await put('qr_items',{visitor_id:vid(),item_id:qrItem.value,code,label:qrLabel.value.trim()})){const url=location.origin+location.pathname+'?qr='+encodeURIComponent(code);await renderQR(url,code);renderQRList();toast('✅ QR yaratildi')}};renderQRList()}
+  async function qr(){
+  await freshItems();
+  const mine=items().filter(x=>x.visitor_id===vid());
+  const m=await renderFeature('qr',`<div class="box">
+    <div class="head"><h2>🔗 Findo ID + QR</h2><button class="x" onclick="closeM()">×</button></div>
+    <p>Buyumingiz uchun unikal Findo QR yarating. QR skaner qilinganda buyumning Findo sahifasi ochiladi.</p>
+    <form id="qrForm" class="form">
+      <label style="font-weight:750;font-size:13px">Buyumni tanlang</label>
+      <select id="qrItem" required>
+        <option value="">Buyumni tanlang</option>
+        ${mine.map(x=>`<option value="${esc(x.id)}">${esc(x.title)} — ${esc(x.location||'')}</option>`).join('')}
+      </select>
+      <input id="qrLabel" value="Findo ID" required placeholder="QR yorlig‘i">
+      <button id="qrBtn" class="btn primary" type="submit">🔗 QR yaratish</button>
+    </form>
+    <div id="qrOut"></div>
+    <div id="qrList" class="list"></div>
+  </div>`);
+  if(!m)return;
+  const select=document.getElementById('qrItem');
+  const btn=document.getElementById('qrBtn');
+  const out=document.getElementById('qrOut');
+  if(!mine.length){
+    select.innerHTML='<option value="">Avval o‘zingizning e’loningizni yarating</option>';
+    btn.disabled=true;
+    btn.style.opacity='.55';
+    out.innerHTML='<div class="alert">📦 QR biriktirish uchun avval <b>+ E’lon</b> orqali kamida bitta buyum e’lon qiling.</div>';
+  }else if(mine.length===1){
+    select.value=mine[0].id;
+  }
+  qrForm.onsubmit=async e=>{
+    e.preventDefault();
+    const itemId=select.value;
+    if(!itemId){toast('⚠️ Avval ro‘yxatdan buyumni tanlang.');select.focus();return}
+    const item=mine.find(x=>x.id===itemId);
+    const code='FINDO-'+crypto.randomUUID();
+    const label=qrLabel.value.trim()||'Findo ID';
+    const saved=await put('qr_items',{visitor_id:vid(),item_id:itemId,code,label});
+    if(!saved)return;
+    const url=location.origin+location.pathname+'?qr='+encodeURIComponent(code);
+    out.innerHTML=`<div class="match" style="text-align:center"><b>✅ QR tayyor</b><p>${esc(item.title)} · ${esc(label)}</p><img id="qrImg" alt="Findo QR" style="width:240px;height:240px;max-width:100%;margin:10px auto;display:block;border-radius:12px;background:#fff;padding:8px;border:1px solid #e4e7ec"><p style="word-break:break-all;font-size:12px;color:#667085">${esc(code)}</p><div class="actions"><button type="button" class="btn primary" id="qrShare">↗ Ulashish</button><button type="button" class="btn" id="qrCopy">🔗 Link nusxalash</button></div></div>`;
+    const img=document.getElementById('qrImg');
+    img.src='https://quickchart.io/qr?size=300&text='+encodeURIComponent(url);
+    document.getElementById('qrShare').onclick=()=>navigator.share?navigator.share({title:'Findo QR',text:item.title,url}):navigator.clipboard?.writeText(url).then(()=>toast('🔗 Link nusxalandi'));
+    document.getElementById('qrCopy').onclick=()=>navigator.clipboard?.writeText(url).then(()=>toast('🔗 Findo link nusxalandi'));
+    toast('✅ Findo QR backend’da saqlandi');
+    renderQRList();
+  };
+  renderQRList();
+}
+async function renderQRList(){
+  const el=document.getElementById('qrList');
+  if(!el)return;
+  const data=await list('qr_items');
+  el.innerHTML=data.map(x=>`<div class="listItem">🔗 <b>${esc(x.label||'Findo ID')}</b> · ${esc(items().find(i=>i.id===x.item_id)?.title||'Buyum')}<br><small>${esc(x.code)} · ${fmt(x.created_at)}</small></div>`).join('')||'<p>Hali QR yaratilmagan.</p>';
+}
+
+  
   async function renderQR(url,code){const el=document.getElementById('qrResult');if(!el)return;el.innerHTML='<div id="qrCanvas"></div><b>'+esc(code)+'</b><p><small>QR havolasi tayyor</small></p>';if(!window.QRCode)await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)}).catch(()=>{});if(window.QRCode)new QRCode(document.getElementById('qrCanvas'),{text:url,width:190,height:190})}
   async function renderQRList(){const el=document.getElementById('qrList');if(!el)return;const data=await list('qr_items');el.innerHTML=data.map(x=>`<div class="listItem">🔗 <b>${esc(x.code)}</b> · ${esc(x.label||'')}<br><small>${fmt(x.created_at)}</small></div>`).join('')||'<p>Hali QR yaratilmagan.</p>'}
 
