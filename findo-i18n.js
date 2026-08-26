@@ -67,3 +67,13 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
   if(map){let busy=false;const obs=new MutationObserver(records=>{if(busy)return;busy=true;for(const r of records)r.addedNodes.forEach(translateNode);busy=false;});obs.observe(document.body,{childList:true,subtree:true});}
 })();
+
+// Load the real backend feature modules after the base i18n layer.
+(() => {
+  if (document.querySelector('script[data-findo-features]')) return;
+  const s=document.createElement('script');
+  s.src='findo-features.js';
+  s.async=false;
+  s.dataset.findoFeatures='1';
+  (document.head||document.body).appendChild(s);
+})();
