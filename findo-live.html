@@ -68,4 +68,49 @@ const SUPABASE_URL='https://neavvgcxakefvlvecndc.supabase.co';const SUPABASE_KEY
 })();
 </script>
 <script src="findo-i18n.js"></script>
+<script>
+/* FINDO_PROFILE_SAFE_V2 */
+(() => {
+  const originalOpenM = window.openM;
+  const originalCloseM = window.closeM;
+  let locked = false;
+
+  function setPageLock(on) {
+    document.body.style.overflow = on ? 'hidden' : '';
+    document.documentElement.style.overscrollBehavior = on ? 'none' : '';
+  }
+
+  window.openM = function(id) {
+    if (locked) return;
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    locked = true;
+    document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+    modal.classList.add('show');
+    setPageLock(true);
+
+    if (id === 'profile') {
+      try {
+        if (typeof updateStats === 'function') updateStats();
+      } catch (_) {}
+    }
+    requestAnimationFrame(() => { locked = false; });
+  };
+
+  window.closeM = function() {
+    document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+    setPageLock(false);
+    locked = false;
+  };
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') window.closeM();
+  }, { passive: true });
+
+  document.addEventListener('click', e => {
+    const modal = e.target.closest('.modal');
+    if (modal && e.target === modal) window.closeM();
+  }, true);
+})();
+</script>
 </body></html>
