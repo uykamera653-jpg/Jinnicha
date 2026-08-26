@@ -1,0 +1,7 @@
+(() => {
+  const db=window.supabase.createClient('https://neavvgcxakefvlvecndc.supabase.co','sb_publishable_1o7-MHRPV_jKSs-xWA3odw_UhTNCuVM');
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  function hav(a,b,c,d){const R=6371,r=x=>x*Math.PI/180,da=r(c-a),db=r(d-b),h=Math.sin(da/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(db/2)**2;return R*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
+  async function draw(){const map=document.querySelector('.map');if(!map)return;const {data}=await db.from('items').select('id,title,type,location,latitude,longitude').eq('status','active').limit(200);const rows=(data||[]).filter(x=>x.latitude!=null&&x.longitude!=null);map.innerHTML='<div style="position:absolute;inset:0;display:grid;place-items:center;color:#667085">📍 '+rows.length+' ta geo-e’lon</div>';if(!rows.length)return;map.style.background='#eef3f8';rows.forEach(x=>{const lat=x.latitude,lon=x.longitude;const left=Math.max(4,Math.min(94,50+(lon-69)*2));const top=Math.max(8,Math.min(90,50-(lat-41)*4));const p=document.createElement('button');p.type='button';p.title=x.title;p.textContent=x.type==='found'?'🟢':'🔴';p.style.cssText=`position:absolute;left:${left}%;top:${top}%;transform:translate(-50%,-50%);border:0;background:transparent;font-size:25px;z-index:2`;p.onclick=()=>window.toast?.(`${x.type==='found'?'🟢':'🔴'} ${x.title} · ${x.location}`);map.appendChild(p);});}
+  window.findoDrawMap=draw;setTimeout(draw,1800);window.addEventListener('findo:items-updated',draw);
+})();
