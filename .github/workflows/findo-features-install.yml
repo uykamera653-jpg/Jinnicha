@@ -17,19 +17,79 @@ jobs:
 
           p=Path('findo-live.html')
           s=p.read_text(encoding='utf-8')
-          tag='<script src="findo-features.js?v=20260826-1935"></script>'
-          s=re.sub(r'<script src="findo-features\.js(?:\?[^" ]*)?"></script>', tag, s)
+          tag='<script src="findo-features.js?v=20260826-1945"></script>'
+          s=re.sub(r'<script src="findo-features\\.js(?:\\?[^" ]*)?"></script>', tag, s)
           if tag not in s:
               s=s.replace('</body>', tag+'\n</body>')
-          s=re.sub(r'\n<script>\s*/\* FINDO_PROFILE_SAFE_V2 \*/.*?</script>\s*', '\n', s, flags=re.S)
+          s=re.sub(r'\n<script>\s*/\* FINDO_PROFILE_SAFE_V[23] \*/.*?</script>\s*', '\n', s, flags=re.S)
           p.write_text(s,encoding='utf-8')
 
           f=Path('findo-features.js')
           fs=f.read_text(encoding='utf-8')
-          old='m.innerHTML=html;return m'
-          new='m.innerHTML=html;m.classList.add(\'show\');return m'
-          if old in fs:
-              fs=fs.replace(old,new,1)
+          fs=fs.replace('m.innerHTML=html;return m', "m.innerHTML=html;m.classList.add('show');return m", 1)
+
+          qr = r'''async function qr(){
+            await freshItems();
+            const mine=items().filter(x=>x.visitor_id===vid());
+            const m=await renderFeature('qr',`<div class="box">
+              <div class="head"><h2>🔗 Findo ID + QR</h2><button class="x" onclick="closeM()">×</button></div>
+              <p>Buyumingiz uchun unikal Findo QR yarating. QR skaner qilinganda buyumning Findo sahifasi ochiladi.</p>
+              <form id="qrForm" class="form">
+                <label style="font-weight:750;font-size:13px">Buyumni tanlang</label>
+                <select id="qrItem" required>
+                  <option value="">Buyumni tanlang</option>
+                  ${mine.map(x=>`<option value="${esc(x.id)}">${esc(x.title)} — ${esc(x.location||'')}</option>`).join('')}
+                </select>
+                <input id="qrLabel" value="Findo ID" required placeholder="QR yorlig‘i">
+                <button id="qrBtn" class="btn primary" type="submit">🔗 QR yaratish</button>
+              </form>
+              <div id="qrOut"></div>
+              <div id="qrList" class="list"></div>
+            </div>`);
+            if(!m)return;
+            const select=document.getElementById('qrItem');
+            const btn=document.getElementById('qrBtn');
+            const out=document.getElementById('qrOut');
+            if(!mine.length){
+              select.innerHTML='<option value="">Avval o‘zingizning e’loningizni yarating</option>';
+              btn.disabled=true;
+              btn.style.opacity='.55';
+              out.innerHTML='<div class="alert">📦 QR biriktirish uchun avval <b>+ E’lon</b> orqali kamida bitta buyum e’lon qiling.</div>';
+            }else if(mine.length===1){
+              select.value=mine[0].id;
+            }
+            qrForm.onsubmit=async e=>{
+              e.preventDefault();
+              const itemId=select.value;
+              if(!itemId){toast('⚠️ Avval ro‘yxatdan buyumni tanlang.');select.focus();return}
+              const item=mine.find(x=>x.id===itemId);
+              const code='FINDO-'+crypto.randomUUID();
+              const label=qrLabel.value.trim()||'Findo ID';
+              const saved=await put('qr_items',{visitor_id:vid(),item_id:itemId,code,label});
+              if(!saved)return;
+              const url=location.origin+location.pathname+'?qr='+encodeURIComponent(code);
+              out.innerHTML=`<div class="match" style="text-align:center"><b>✅ QR tayyor</b><p>${esc(item.title)} · ${esc(label)}</p><img id="qrImg" alt="Findo QR" style="width:240px;height:240px;max-width:100%;margin:10px auto;display:block;border-radius:12px;background:#fff;padding:8px;border:1px solid #e4e7ec"><p style="word-break:break-all;font-size:12px;color:#667085">${esc(code)}</p><div class="actions"><button type="button" class="btn primary" id="qrShare">↗ Ulashish</button><button type="button" class="btn" id="qrCopy">🔗 Link nusxalash</button></div></div>`;
+              const img=document.getElementById('qrImg');
+              img.src='https://quickchart.io/qr?size=300&text='+encodeURIComponent(url);
+              document.getElementById('qrShare').onclick=()=>navigator.share?navigator.share({title:'Findo QR',text:item.title,url}):navigator.clipboard?.writeText(url).then(()=>toast('🔗 Link nusxalandi'));
+              document.getElementById('qrCopy').onclick=()=>navigator.clipboard?.writeText(url).then(()=>toast('🔗 Findo link nusxalandi'));
+              toast('✅ Findo QR backend’da saqlandi');
+              renderQRList();
+            };
+            renderQRList();
+          }
+          async function renderQRList(){
+            const el=document.getElementById('qrList');
+            if(!el)return;
+            const data=await list('qr_items');
+            el.innerHTML=data.map(x=>`<div class="listItem">🔗 <b>${esc(x.label||'Findo ID')}</b> · ${esc(items().find(i=>i.id===x.item_id)?.title||'Buyum')}<br><small>${esc(x.code)} · ${fmt(x.created_at)}</small></div>`).join('')||'<p>Hali QR yaratilmagan.</p>';
+          }
+          '''
+          pattern=r'async function qr\(\)\{.*?(?=\n  (?:async )?function )'
+          if re.search(pattern,fs,re.S):
+              fs=re.sub(pattern,qr+'\n  ',fs,count=1,flags=re.S)
+          else:
+              raise SystemExit('QR function not found')
           f.write_text(fs,encoding='utf-8')
           PY
       - name: Commit
@@ -38,5 +98,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add findo-live.html findo-features.js
           git diff --cached --quiet && exit 0
-          git commit -m "Repair Findo feature renderer"
+          git commit -m "Fix Findo QR item selection and generation"
           git push
