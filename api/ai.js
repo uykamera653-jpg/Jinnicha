@@ -1,6 +1,14 @@
 const OpenAI = require('openai');
 
 module.exports = async function handler(req, res) {
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      ok: true,
+      openaiKeyConfigured: Boolean(process.env.OPENAI_API_KEY),
+      model: 'gpt-5.6-luna'
+    });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'POST only' });
   }
@@ -8,7 +16,7 @@ module.exports = async function handler(req, res) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return res.status(503).json({
-      error: 'OPENAI_API_KEY is not configured in Vercel Production.'
+      error: 'OPENAI_API_KEY is not available to this Production deployment.'
     });
   }
 
@@ -67,18 +75,22 @@ ${text}`;
     console.error('Findo AI error:', error);
 
     const message = error?.message || '';
+    const code = error?.code || error?.error?.code || '';
+
     if (error?.status === 401) {
-      return res.status(401).json({ error: 'OpenAI API key noto‘g‘ri yoki faol emas.' });
+      return res.status(502).json({ error: 'OpenAI API key noto‘g‘ri yoki faol emas.', code });
     }
     if (error?.status === 429) {
-      return res.status(429).json({ error: 'OpenAI API limiti yoki balans muammosi.' });
+      return res.status(502).json({ error: 'OpenAI API limiti yoki balans/quota muammosi.', code });
     }
     if (error?.status === 400) {
-      return res.status(400).json({ error: `OpenAI so‘rovi rad etildi: ${message}` });
+      return res.status(502).json({ error: `OpenAI so‘rovi rad etildi: ${message}`, code });
     }
 
-    return res.status(500).json({
-      error: message || 'Findo AI vaqtincha ishlamadi.'
+    return res.status(502).json({
+      error: message || 'Findo AI vaqtincha ishlamadi.',
+      code,
+      status: error?.status || 500
     });
   }
 };
