@@ -15,19 +15,15 @@ jobs:
           from pathlib import Path
           import re
 
-          # 1) Force a fresh feature-module URL so mobile browsers cannot keep the old stub.
           p=Path('findo-live.html')
           s=p.read_text(encoding='utf-8')
-          tag='<script src="findo-features.js?v=20260826-1930"></script>'
+          tag='<script src="findo-features.js?v=20260826-1935"></script>'
           s=re.sub(r'<script src="findo-features\.js(?:\?[^" ]*)?"></script>', tag, s)
           if tag not in s:
               s=s.replace('</body>', tag+'\n</body>')
-
-          # 2) Remove the older profile-safe wrapper that was overriding the real feature layer.
           s=re.sub(r'\n<script>\s*/\* FINDO_PROFILE_SAFE_V2 \*/.*?</script>\s*', '\n', s, flags=re.S)
           p.write_text(s,encoding='utf-8')
 
-          # 3) Make the real feature renderer actually display the populated modal.
           f=Path('findo-features.js')
           fs=f.read_text(encoding='utf-8')
           old='m.innerHTML=html;return m'
@@ -42,5 +38,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add findo-live.html findo-features.js
           git diff --cached --quiet && exit 0
-          git commit -m "Fix Findo feature modals and cache"
+          git commit -m "Repair Findo feature renderer"
           git push
