@@ -41,40 +41,29 @@
   const map = lang === 'uz' ? null : U;
   const replaceValue = value => {
     if (!map || !value) return value;
-    let out = value;
-    for (const [uz,pair] of Object.entries(map)) {
-      const to = lang === 'ru' ? pair[0] : pair[1];
-      if (to && out.includes(uz)) out = out.split(uz).join(to);
-    }
+    let out=value;
+    for(const [uz,pair] of Object.entries(map)){const to=lang==='ru'?pair[0]:pair[1];if(to&&out.includes(uz))out=out.split(uz).join(to);}
     return out;
   };
-  function translateNode(root) {
-    if (!map || !root) return;
-    if (root.nodeType === Node.TEXT_NODE) { root.nodeValue = replaceValue(root.nodeValue); return; }
-    if (root.nodeType !== Node.ELEMENT_NODE) return;
-    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); const a=[]; let n;
-    while ((n=w.nextNode())) a.push(n); a.forEach(x => x.nodeValue = replaceValue(x.nodeValue));
-    root.querySelectorAll?.('input,textarea').forEach(el => { if(el.placeholder) el.placeholder=replaceValue(el.placeholder); });
-    root.querySelectorAll?.('option').forEach(el => { el.textContent=replaceValue(el.textContent); });
+  function translateNode(root){
+    if(!map||!root)return;
+    if(root.nodeType===Node.TEXT_NODE){if(root.parentElement?.matches('script,style'))return;root.nodeValue=replaceValue(root.nodeValue);return;}
+    if(root.nodeType!==Node.ELEMENT_NODE||/^(SCRIPT|STYLE)$/.test(root.tagName))return;
+    const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const a=[];let n;
+    while((n=w.nextNode()))a.push(n);
+    a.forEach(x=>{if(!x.parentElement?.matches('script,style'))x.nodeValue=replaceValue(x.nodeValue);});
+    root.querySelectorAll?.('input,textarea').forEach(el=>{if(el.placeholder)el.placeholder=replaceValue(el.placeholder);});
+    root.querySelectorAll?.('option').forEach(el=>{el.textContent=replaceValue(el.textContent);});
   }
-  function choose(next) { localStorage.setItem('findo_lang',next); location.reload(); }
-  function addLanguageButton() {
-    const nav=document.querySelector('.navBtns'); if(!nav || document.getElementById('findoLangBtn')) return;
-    const b=document.createElement('button'); b.id='findoLangBtn'; b.className='btn'; b.type='button';
-    b.textContent=LANGS[lang].flag+' '+lang.toUpperCase();
-    b.onclick=()=>{ let p=document.getElementById('findoLangPanel'); if(p){p.remove();return;}
-      p=document.createElement('div'); p.id='findoLangPanel'; p.style.cssText='position:fixed;right:10px;top:62px;z-index:9999;background:#fff;border:1px solid #e4e7ec;border-radius:14px;padding:8px;box-shadow:0 14px 40px #10182822;display:flex;flex-direction:column;gap:6px;min-width:150px';
-      Object.entries(LANGS).forEach(([code,info])=>{const x=document.createElement('button');x.className='btn';x.type='button';x.textContent=info.flag+' '+info.name;x.onclick=()=>choose(code);p.appendChild(x);});
-      document.body.appendChild(p);
-    };
+  function choose(next){localStorage.setItem('findo_lang',next);location.reload();}
+  function addLanguageButton(){
+    const nav=document.querySelector('.navBtns');if(!nav||document.getElementById('findoLangBtn'))return;
+    const b=document.createElement('button');b.id='findoLangBtn';b.className='btn';b.type='button';b.textContent=LANGS[lang].flag+' '+lang.toUpperCase();
+    b.onclick=()=>{let p=document.getElementById('findoLangPanel');if(p){p.remove();return;}p=document.createElement('div');p.id='findoLangPanel';p.style.cssText='position:fixed;right:10px;top:62px;z-index:9999;background:#fff;border:1px solid #e4e7ec;border-radius:14px;padding:8px;box-shadow:0 14px 40px #10182822;display:flex;flex-direction:column;gap:6px;min-width:150px';Object.entries(LANGS).forEach(([code,info])=>{const x=document.createElement('button');x.className='btn';x.type='button';x.textContent=info.flag+' '+info.name;x.onclick=()=>choose(code);p.appendChild(x);});document.body.appendChild(p);};
     nav.insertBefore(b,nav.firstChild);
   }
   function wireOldLanguageModal(){const b=document.querySelectorAll('#language .btn');if(b.length>=3){b[0].onclick=()=>choose('uz');b[1].onclick=()=>choose('ru');b[2].onclick=()=>choose('en');}}
   function boot(){addLanguageButton();wireOldLanguageModal();translateNode(document.body);}
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
-  if(map){
-    let busy=false;
-    const obs=new MutationObserver(records=>{if(busy)return;busy=true;for(const r of records)r.addedNodes.forEach(translateNode);busy=false;});
-    obs.observe(document.body,{childList:true,subtree:true});
-  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  if(map){let busy=false;const obs=new MutationObserver(records=>{if(busy)return;busy=true;for(const r of records)r.addedNodes.forEach(translateNode);busy=false;});obs.observe(document.body,{childList:true,subtree:true});}
 })();
