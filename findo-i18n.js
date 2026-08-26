@@ -15,4 +15,4 @@
 })();
 
 // Real feature modules
-(()=>{for(const src of ['findo-features.js','findo-pro-features.js','findo-map.js','findo-modern.js']){if(!document.querySelector(`script[src="${src}"]`)){const s=document.createElement('script');s.src=src+'?v=20260826-modern';s.async=false;document.head.appendChild(s)}}})();
+(()=>{for(const src of ['findo-features.js','findo-pro-features.js','findo-map.js','findo-modern.js','findo-pro-ui.js']){if(!document.querySelector(`script[src="${src}"]`)){const s=document.createElement('script');s.src=src+'?v=20260826-pro-ui';s.async=false;document.head.appendChild(s)}}})();
