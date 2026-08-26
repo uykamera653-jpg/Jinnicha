@@ -120,7 +120,7 @@ function home(){scrollTo({top:0,behavior:'smooth'})}function toast(t){const e=do
     ['uz','ru','en'].forEach(x=>{const b=document.createElement('button');b.className='btn';b.textContent=L[x].flag+' '+L[x].name;b.onclick=()=>{lang=x;localStorage.setItem('findo_lang',x);m.remove();apply()};m.appendChild(b)});document.body.appendChild(m);
   }
   function add(){const old=document.querySelector('.navBtns');if(!old||document.getElementById('langBtn'))return;const b=document.createElement('button');b.id='langBtn';b.className='btn';b.onclick=()=>{const p=document.getElementById('languagePanel');p?p.remove():panel()};old.insertBefore(b,old.firstChild);apply()}
-  const obs=new MutationObserver(()=>{if(document.getElementById('langBtn'))apply()});obs.observe(document.body,{childList:true,subtree:true});
+  let applying=false; const obs=new MutationObserver(()=>{if(!applying&&document.getElementById('langBtn')){applying=true;apply();applying=false}});obs.observe(document.body,{childList:true,subtree:true});
   window.addEventListener('load',()=>setTimeout(add,50));
   setTimeout(add,200);
 })();
