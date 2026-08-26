@@ -1,0 +1,62 @@
+name: Fix Findo QR UI
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace old QR UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('findo-features.js')
+          s=p.read_text(encoding='utf-8')
+          start=s.find('  async function qr(){\n  await freshItems')
+          end=s.find('  async function visual()', start)
+          if start < 0 or end < 0:
+              raise SystemExit('QR block markers not found')
+          new=r'''  async function qr(){
+            const m=await renderFeature('qr',`<div class="box"><div class="head"><h2>🔗 Findo ID + QR</h2><button class="x" onclick="closeM()">×</button></div>
+            <p><b>Buyum yo‘qolmasidan oldin</b> unga Findo QR yarating. Keyin QRni buyumga yopishtiring.</p>
+            <div class="alert">📱 Kimdir QRni skaner qilsa, buyumning Findo sahifasi ochiladi va topuvchi egasiga xabar yubora oladi.</div>
+            <form id="qrForm" class="form">
+              <input id="qrName" required maxlength="160" placeholder="Buyum nomi: iPhone 15 Pro">
+              <select id="qrCat" required><option>Telefon</option><option>Hujjat</option><option>Kalit</option><option>Sumka</option><option>Hamyon</option><option>Hayvon</option><option>Velosiped</option><option>Noutbuk</option><option>Boshqa</option></select>
+              <input id="qrOwner" required maxlength="100" placeholder="Egasi ismi">
+              <textarea id="qrDesc" required maxlength="4000" placeholder="Buyum belgisi: qora g‘ilof, tirnalgan joy..."></textarea>
+              <div class="field"><label>Buyum rasmi</label><input id="qrFile" type="file" accept="image/*" required></div>
+              <button id="qrBtn" class="btn primary" type="submit">🔗 QR yaratish</button>
+            </form><div id="qrOut"></div><div id="qrList" class="list"></div></div>`);
+            if(!m)return;
+            qrForm.onsubmit=async e=>{e.preventDefault();const f=qrFile.files[0];if(!f)return toast('📸 Buyum rasmini yuklang');if(f.size>8*1024*1024)return toast('❌ Rasm 8 MB dan kichik bo‘lsin');try{
+              const ext=(f.name.split('.').pop()||'jpg').toLowerCase(),path=`${vid()}/qr-${crypto.randomUUID()}.${ext}`;
+              const up=await db.storage.from('item-images').upload(path,f,{contentType:f.type,upsert:false});if(up.error)throw up.error;
+              const {data:item,error:itemError}=await db.from('items').insert({visitor_id:vid(),type:'lost',category:qrCat.value,title:qrName.value.trim(),location:'QR himoyalangan buyum',description:qrDesc.value.trim(),status:'qr_protected',image_path:path}).select().single();if(itemError)throw itemError;
+              const {error:profileError}=await db.from('findo_profiles').upsert({visitor_id:vid(),display_name:qrOwner.value.trim()},{onConflict:'visitor_id'});if(profileError)throw profileError;
+              const code='FINDO-'+crypto.randomUUID();const {data:qrRow,error:qrError}=await db.from('qr_items').insert({visitor_id:vid(),item_id:item.id,code,label:item.title}).select().single();if(qrError)throw qrError;
+              const url=location.origin+location.pathname+'?qr='+encodeURIComponent(code);
+              qrOut.innerHTML=`<div class="match" style="text-align:center"><b>✅ QR tayyor va saqlandi</b><p>${esc(item.title)}</p><div id="qrCanvas" style="display:flex;justify-content:center;margin:12px 0"></div><small style="word-break:break-all">${esc(code)}</small><div class="actions"><button type="button" class="btn primary" id="qrShare">↗ Ulashish</button><button type="button" class="btn" id="qrCopy">🔗 Link nusxalash</button></div><button type="button" class="btn" id="qrLost" style="width:100%;margin-top:8px">🚨 Yo‘qolgan deb belgilash</button></div>`;
+              await makeFindoQR(url);qrShare.onclick=()=>navigator.share?navigator.share({title:'Findo QR',text:item.title,url}):navigator.clipboard?.writeText(url).then(()=>toast('🔗 Link nusxalandi'));qrCopy.onclick=()=>navigator.clipboard?.writeText(url).then(()=>toast('🔗 Link nusxalandi'));qrLost.onclick=async()=>{const r=await db.from('items').update({status:'active'}).eq('id',item.id).eq('visitor_id',vid());if(r.error)return toast('❌ Holat o‘zgarmadi');toast('🚨 Buyum yo‘qolgan deb belgilandi');await freshItems()};toast('✅ Findo QR backend’da saqlandi');qrForm.reset();renderQRList();
+            }catch(err){console.error(err);toast('❌ QR yaratishda xato: '+(err.message||'unknown'))}};
+            renderQRList();
+          }
+          async function makeFindoQR(url){if(!window.QRCode)await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)}).catch(()=>{});const el=document.getElementById('qrCanvas');if(el&&window.QRCode)new QRCode(el,{text:url,width:220,height:220,correctLevel:QRCode.CorrectLevel.M})}
+          async function renderQRList(){const el=document.getElementById('qrList');if(!el)return;const data=await list('qr_items');el.innerHTML=data.map(x=>`<div class="listItem">🔗 <b>${esc(x.label||'Findo ID')}</b><br><small>${esc(x.code)} · ${fmt(x.created_at)}</small></div>`).join('')||'<p>Hali QR yaratilmagan.</p>'}
+
+'''
+          s=s[:start]+new+s[end:]
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "Findo Bot"
+          git config user.email "findo-bot@users.noreply.github.com"
+          git add findo-features.js
+          git diff --cached --quiet || git commit -m "Fix Findo QR UI"
+          git push
