@@ -1,8 +1,9 @@
 {
-  "name": "findo-web",
-  "private": true,
-  "version": "1.0.0",
-  "dependencies": {
-    "openai": "^5.20.0"
+  "name":"findo-web",
+  "private":true,
+  "version":"1.0.0",
+  "dependencies":{
+    "openai":"^5.20.0",
+    "@supabase/supabase-js":"^2.57.0"
   }
 }
