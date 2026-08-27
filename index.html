@@ -54,5 +54,5 @@ async function search(){const text=q.value.trim();if(!text){result.className='re
 go.onclick=search;q.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')search()});document.getElementById('clear').onclick=()=>{q.value='';result.className='result';q.focus()};document.getElementById('mic').onclick=()=>{const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){result.className='result show';result.innerHTML='<div style="color:#b42318">Bu brauzerda ovozli qidiruv qo‘llab-quvvatlanmaydi.</div>';return}const r=new R();r.lang='uz-UZ';r.onresult=e=>{q.value=e.results[0][0].transcript};r.start()};
 boot();
 </script>
-</body>
+<script src="/qr.js"></script></body>
 </html>
