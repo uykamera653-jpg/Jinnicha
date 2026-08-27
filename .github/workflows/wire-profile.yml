@@ -1,0 +1,30 @@
+name: Wire Findo Profile
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Connect profile buttons
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          old='<button class="profile" id="profile">U</button>'
+          new='<button class="profile" id="profile" onclick="location.href=\'/profile/\'">U</button>'
+          s=s.replace(old,new)
+          s=s.replace('onclick="document.getElementById(\'profile\').click()"','onclick="location.href=\'/profile/\'"')
+          p.write_text(s)
+          PY
+      - name: Commit profile wiring
+        run: |
+          git config user.name "findo-bot"
+          git config user.email "actions@github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Wire Findo profile page [skip ci]"
+          git push
