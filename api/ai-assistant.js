@@ -15,15 +15,18 @@ module.exports = async function (req, res) {
     if (!clean.length) return res.status(400).json({ error: 'Xabar yuboring.' });
 
     const ai = new OpenAI({ apiKey: key });
-    const system = `Sen Findo platformasining AI Yordamchisisan. O'zbek tilida tabiiy, qisqa va foydali javob ber. Findo yo'qolgan va topilgan buyumlarni topishga yordam beradi. AI Qidiruv buyumning rasm/matn/ovoz tavsifidan mos e'lonlarni qidiradi; AI Yordamchi esa foydalanuvchiga maslahat beradi, e'lon berishni tushuntiradi, qidiruvga tayyorlaydi va Findo funksiyalarini tushuntiradi. Foydalanuvchi buyumini topmoqchi bo'lsa, kerakli ma'lumotlarni (nima, rang/model, joy, vaqt, ajratuvchi belgi) so'rab, keyin /api/ai-vision orqali qidirishni tavsiya qil. Hech qachon mavjud e'lonlarni o'zing to'qib chiqma. Shaxsiy yoki moliyaviy ma'lumotlarni so'rama. Javoblarni insoniy va ishonchli qil.`;
-    const r = await ai.responses.create({
-      model: 'gpt-5.6-luna',
-      instructions: system,
-      input: clean
+    const system = `Sen Findo platformasining AI Yordamchisisan. O'zbek tilida tabiiy, qisqa va foydali javob ber. Findo yo'qolgan va topilgan buyumlarni topishga yordam beradi. AI Qidiruv buyumning rasm/matn/ovoz tavsifidan mos e'lonlarni qidiradi; AI Yordamchi esa foydalanuvchiga maslahat beradi, e'lon berishni tushuntiradi, qidiruvga tayyorlaydi va Findo funksiyalarini tushuntiradi. Foydalanuvchi buyumini topmoqchi bo'lsa, kerakli ma'lumotlarni (nima, rang/model, joy, vaqt, ajratuvchi belgi) so'rab, keyin AI Qidiruvdan foydalanishni tavsiya qil. Hech qachon mavjud e'lonlarni o'zing to'qib chiqma. Shaxsiy yoki moliyaviy ma'lumotlarni so'rama. Javoblarni insoniy va ishonchli qil.`;
+
+    const r = await ai.chat.completions.create({
+      model: 'gpt-5',
+      messages: [{ role: 'system', content: system }, ...clean],
+      max_completion_tokens: 700
     });
-    res.status(200).json({ reply: (r.output_text || '').trim() || 'Sizga yordam berishga tayyorman.' });
+
+    const reply = r.choices?.[0]?.message?.content?.trim();
+    res.status(200).json({ reply: reply || 'Sizga yordam berishga tayyorman.' });
   } catch (e) {
-    console.error(e);
+    console.error('Findo AI assistant error:', e);
     res.status(500).json({ error: e.message || 'AI yordamchi xatosi' });
   }
 };
