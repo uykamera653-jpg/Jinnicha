@@ -37,15 +37,17 @@ module.exports = async function handler(req, res) {
 
     const system = `Sen Findo platformasining AI Yordamchisisan.
 
-Asosiy vazifa:
-- O‘zbek tilida tabiiy, qisqa va foydali javob ber.
+Vazifa:
+- Foydalanuvchining HAR BIR savoliga uning aynan bergan savoliga mos javob ber. Bir xil tayyor javobni takrorlama.
+- O‘zbek tilida tabiiy, qisqa va foydali yoz. Foydalanuvchi ruscha yoki inglizcha yozsa, o‘sha tilda javob ber.
 - Findo yo‘qolgan va topilgan buyumlarni topishga yordam beradi.
-- Foydalanuvchi yo‘qolgan buyumini topmoqchi bo‘lsa, buyum turi, rang/model, joy, taxminiy vaqt va ajratuvchi belgilarni so‘ra.
-- Foydalanuvchini AI Qidiruvdan foydalanishga yo‘naltir.
-- E’lon berish, qidiruv qilish, profil, QR va Findo funksiyalarini tushuntir.
-- Mavjud e’lonlarni o‘zing to‘qib chiqma. Sen faqat foydalanuvchi bergan ma’lumotga tayangan holda gapir.
+- Yo‘qolgan buyum haqida gap ketsa, buyum turi, rang/model, joy, taxminiy vaqt va ajratuvchi belgilarni aniqlashga yordam ber.
+- E’lon berish, AI qidiruv, profil, QR va Findo funksiyalarini tushuntir.
+- Mavjud e’lonlar yoki foydalanuvchi ma’lumotlarini ko‘rmasang, ularni to‘qib chiqma va topilgandek ko‘rsatma.
+- Oddiy suhbat, salomlashish va Findo’ga aloqasi bo‘lmagan umumiy savollarga ham savolning mazmuniga mos javob ber.
+- Javob berish uchun yetarli ma’lumot bo‘lmasa, bitta-ikkita aniq aniqlashtiruvchi savol ber.
+- Hech qachon “Sizga yordam berishga tayyorman” kabi mazmunsiz bir xil fallback javobni qaytarmaslikka harakat qil.
 - Shaxsiy parol, karta raqami yoki boshqa maxfiy moliyaviy ma’lumotlarni so‘rama.
-- Javoblar insoniy va ishonchli bo‘lsin.
 - Javobni markdown bilan yozish mumkin, lekin ortiqcha uzun qilma.`;
 
     const response = await ai.responses.create({
@@ -57,11 +59,39 @@ Asosiy vazifa:
       max_output_tokens: 700
     });
 
-    const reply = response.output_text?.trim();
+    // SDK'dagi output_text bo‘sh qoladigan holatlarda ham modelning
+    // message/output bloklaridan matnni ishonchli chiqaramiz.
+    let reply = typeof response.output_text === 'string'
+      ? response.output_text.trim()
+      : '';
 
-    return res.status(200).json({
-      reply: reply || 'Sizga yordam berishga tayyorman.'
-    });
+    if (!reply && Array.isArray(response.output)) {
+      const parts = [];
+      for (const item of response.output) {
+        if (item?.type !== 'message' || !Array.isArray(item.content)) continue;
+        for (const part of item.content) {
+          if (part?.type === 'output_text' && typeof part.text === 'string') {
+            parts.push(part.text);
+          }
+        }
+      }
+      reply = parts.join('\n').trim();
+    }
+
+    if (!reply) {
+      console.error('Findo AI returned no text', JSON.stringify({
+        id: response.id,
+        status: response.status,
+        outputTypes: Array.isArray(response.output)
+          ? response.output.map((x) => x?.type)
+          : []
+      }));
+      return res.status(502).json({
+        error: 'AI javob yaratmadi. Iltimos, savolni qayta yuboring.'
+      });
+    }
+
+    return res.status(200).json({ reply });
   } catch (error) {
     console.error('Findo AI assistant error:', error);
 
